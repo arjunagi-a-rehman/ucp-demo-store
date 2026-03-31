@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { getDoc } from "@/lib/firestore-rest";
 
 export async function GET(
   request: NextRequest,
@@ -7,11 +7,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const doc = await adminDb.collection("checkout_sessions").doc(id).get();
-    if (!doc.exists) {
+    const doc = await getDoc("checkout_sessions", id);
+    if (!doc) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
-    return NextResponse.json({ id: doc.id, ...doc.data() });
+    return NextResponse.json(doc);
   } catch (error) {
     console.error("Failed to fetch session:", error);
     return NextResponse.json({ error: "Failed to fetch session" }, { status: 500 });

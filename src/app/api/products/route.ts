@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { listDocs } from "@/lib/firestore-rest";
 
 export async function GET() {
   try {
-    const snap = await adminDb.collection("products").orderBy("createdAt", "desc").get();
-    const products = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const products = await listDocs("products", {
+      orderBy: "createdAt",
+      orderDirection: "DESCENDING",
+    });
     return NextResponse.json(products);
   } catch (error) {
     console.error("Failed to fetch products:", error);

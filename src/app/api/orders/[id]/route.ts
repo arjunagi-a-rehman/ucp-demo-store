@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { getDoc } from "@/lib/firestore-rest";
 
 export async function GET(
   request: NextRequest,
@@ -7,11 +7,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const doc = await adminDb.collection("orders").doc(id).get();
-    if (!doc.exists) {
+    const order = await getDoc("orders", id);
+    if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-    return NextResponse.json({ id: doc.id, ...doc.data() });
+    return NextResponse.json(order);
   } catch (error) {
     console.error("Failed to fetch order:", error);
     return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });

@@ -22,19 +22,13 @@ function MerchantLoginContent() {
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
 
-      // Call our API to generate an auth code
-      const res = await fetch("/api/auth/generate-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, redirectUri, state, clientId }),
-      });
-
-      const data = await res.json();
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      } else {
-        setError(data.error || "Failed to generate auth code");
+      // Redirect back to the agent with the Firebase ID token as the code
+      const sep = redirectUri.includes("?") ? "&" : "?";
+      let url = `${redirectUri}${sep}code=${idToken}`;
+      if (state) {
+        url += `&state=${encodeURIComponent(state)}`;
       }
+      window.location.href = url;
     } catch (err) {
       setError("Sign-in failed. Please try again.");
       console.error(err);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { setDoc } from "@/lib/firestore-rest";
 import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    await adminDb.collection("checkout_sessions").doc(sessionId).set(session);
+    await setDoc("checkout_sessions", sessionId, session);
 
     return NextResponse.json({ id: sessionId, ...session });
   } catch (error) {

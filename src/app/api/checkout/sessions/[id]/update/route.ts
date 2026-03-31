@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { getDoc, updateDoc } from "@/lib/firestore-rest";
 
 export async function POST(
   request: NextRequest,
@@ -9,14 +9,10 @@ export async function POST(
     const { id } = await params;
     const { buyer } = await request.json();
 
-    const docRef = adminDb.collection("checkout_sessions").doc(id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
+    const session = await getDoc("checkout_sessions", id);
+    if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
-
-    const session = doc.data()!;
 
     if (session.status === "complete") {
       return NextResponse.json({ error: "Session already complete" }, { status: 400 });
@@ -29,15 +25,15 @@ export async function POST(
     if (buyer) {
       updates.buyer = buyer;
       // Auto-transition if all buyer info is present
-      if (buyer.email && buyer.shippingAddress && buyer.paymentMethod) {
+      if (buyer.email && (buyer.shippingAddress || buyer.shipping_address) && (buyer.paymentMethod || buyer.payment_method)) {
         updates.status = "ready_for_complete";
       }
     }
 
-    await docRef.update(updates);
+    await updateDoc("checkout_sessions", id, updates);
 
-    const updated = await docRef.get();
-    return NextResponse.json({ id: updated.id, ...updated.data() });
+    const updated = await getDoc("checkout_sessions", id);
+    return NextResponse.json(updated);
   } catch (error) {
     console.error("Failed to update session:", error);
     return NextResponse.json({ error: "Failed to update session" }, { status: 500 });

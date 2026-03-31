@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authCodes } from "../generate-code/route";
+import { getDoc, setDoc } from "@/lib/firestore-rest";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,19 +15,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing code" }, { status: 400 });
     }
 
-    const authData = authCodes.get(code);
+    // Look up auth code in Firestore
+    const authData = await getDoc("auth_codes", code);
     if (!authData) {
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
     }
 
     // Check expiry
-    if (authData.expiresAt < Date.now()) {
-      authCodes.delete(code);
+    const expiresAt = new Date(authData.expiresAt as string).getTime();
+    if (expiresAt < Date.now()) {
+      // Delete expired code
+      await setDoc("auth_codes", code, { expired: true });
       return NextResponse.json({ error: "Code expired" }, { status: 400 });
     }
 
-    // Delete the code (one-time use)
-    authCodes.delete(code);
+    // Mark as used
+    await setDoc("auth_codes", code, { ...authData, used: true });
 
     return NextResponse.json({
       uid: authData.uid,

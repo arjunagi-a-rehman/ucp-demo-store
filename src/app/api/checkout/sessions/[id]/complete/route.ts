@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { getDoc, updateDoc, setDoc } from "@/lib/firestore-rest";
 
 export async function POST(
   request: NextRequest,
@@ -7,14 +7,11 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const docRef = adminDb.collection("checkout_sessions").doc(id);
-    const doc = await docRef.get();
+    const session = await getDoc("checkout_sessions", id);
 
-    if (!doc.exists) {
+    if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
-
-    const session = doc.data()!;
 
     if (session.status !== "ready_for_complete") {
       return NextResponse.json(
@@ -24,21 +21,21 @@ export async function POST(
     }
 
     // Complete the session
-    await docRef.update({
+    await updateDoc("checkout_sessions", id, {
       status: "complete",
       updatedAt: new Date().toISOString(),
     });
 
     // Create the order
     const orderId = `ORD-${id.slice(0, 8).toUpperCase()}`;
-    const total = (session.lineItems || []).reduce(
-      (sum: number, item: { price: number; quantity: number }) =>
-        sum + item.price * item.quantity,
+    const lineItems = (session.lineItems as Array<{ price: number; quantity: number }>) || [];
+    const total = lineItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
       0
     );
 
-    await adminDb.collection("orders").doc(orderId).set({
-      userId: session.userId || "",
+    await setDoc("orders", orderId, {
+      userId: (session.userId as string) || "",
       status: "processing",
       lineItems: session.lineItems || [],
       buyer: session.buyer || {},
@@ -48,10 +45,9 @@ export async function POST(
       createdAt: new Date().toISOString(),
     });
 
-    const updated = await docRef.get();
+    const updated = await getDoc("checkout_sessions", id);
     return NextResponse.json({
-      id: updated.id,
-      ...updated.data(),
+      ...updated,
       orderId,
     });
   } catch (error) {
